@@ -1,18 +1,31 @@
 locals {
   servers_raw = csvdecode(file("${path.module}/wave-plan/servers.csv"))
 
-  rsv_instances = {
+  /*rsv_instances = {
     for s in local.servers_raw :
     s.TargetLocation => {
       location            = s.TargetLocation
       resource_group_name = s.RSV_RG
     }
+
+    ...-> this is not taking duplicate values. if eastus comesup in three 2 or more rows thorwing error
+
+  }*/
+  rsv_instances = {
+    for s in distinct([
+      for s in local.servers_raw : {
+        location            = s.TargetLocation
+        resource_group_name = s.RSV_RG
+      }
+    ]) :
+    s.location => s
   }
+
 
   backup_targets = {
     for s in local.servers_raw :
-    s.TargetVMName => {
-      vm_name             = s.TargetVMName
+    s.ServerName => {
+      vm_name             = s.ServerName
       resource_group_name = s.TargetRG
       location            = s.TargetLocation
       environment         = s.Environment
@@ -47,5 +60,5 @@ module "vm_backup" {
   project_name        = var.project_name
   environment         = var.environment
 
-  depends_on = [module.RSV_Policy]
+  depends_on = [module.RSV_Policy] # <- comment out the line after the first run.
 }
